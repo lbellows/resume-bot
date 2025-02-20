@@ -16,8 +16,7 @@ const tmpTheme = createTheme({
     h3: { fontWeight: 700, lineHeight: '68px', fontSize: '64px' },
     h4: { fontWeight: 700, lineHeight: '52px', fontSize: '48px' },
     h5: { fontWeight: 700, lineHeight: '34px', fontSize: '32px' },
-    h6: { fontWeight: 700, lineHeight: '28px', fontSize: '24px' },
-    button:{ textTransform: 'inherit'}
+    h6: { fontWeight: 700, lineHeight: '28px', fontSize: '24px' }
   },
   shadows: [
     'none',

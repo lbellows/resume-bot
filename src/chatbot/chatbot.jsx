@@ -97,12 +97,13 @@ export const Chatbot = () => {
         disabled={apiLoading}
         label="Ask me about my resume..."
         variant="outlined"
-        size='small' fullWidth
+        size='small' 
+        fullWidth
         sx={{ bgcolor: apiLoading ? 'insGray.dark' : 'initial' }}
       />
       <Box justifyContent='space-between' display='flex'>
         <Button onClick={refreshHandler} variant="text" startIcon={<Refresh />}>
-          Refresh Chat
+          New Chat
         </Button>
         <Button onClick={chatHandler} variant="text" endIcon={<ArrowForward />}>
           Send
