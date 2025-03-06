@@ -99,10 +99,10 @@ export const Chatbot = () => {
         onChange={(e) => setChatInput(e.target.value)}
         onKeyDown={(e) => {
           if (e.key == 'Enter')
-            chatHandler()
+            chatHandler(chatInput)
         }}
         disabled={apiLoading}
-        label="Ask me about my resume..."
+        label="Ask me about my resume or employee feedback..."
         variant="outlined"
         size='small' 
         fullWidth
