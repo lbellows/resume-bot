@@ -7,6 +7,13 @@ import { ArrowForward, Refresh } from '@mui/icons-material'
 import { ChatRow } from './chat-row'
 import AccessTimeIcon from '@mui/icons-material/AccessTime'
 
+const suggestionBtnStyle = {
+  textTransform:'none',
+  borderRadius:'10px',
+  paddingY:'0px',
+  marginRight:'4px'
+}
+
 export const Chatbot = () => {
   // const context = useApp()
 
@@ -23,8 +30,8 @@ export const Chatbot = () => {
   const chatRef = useRef(null)
   const [apiLoading, setApiLoading] = useState(false)
 
-  const chatHandler = async () => {
-    if (!chatInput)
+  const chatHandler = async (chatText) => {
+    if (!chatText)
       return
 
     setApiLoading(true)
@@ -32,10 +39,10 @@ export const Chatbot = () => {
     const newUserChat = {
       time: getCurrentTime(),
       name: 'You',
-      text: chatInput,
+      text: chatText,
       isUser: true,
       role: 'user',
-      content: chatInput
+      content: chatText
     }
     const chatWithUser = [...chatHistory, newUserChat]
     setChatHistory(chatWithUser)
@@ -101,11 +108,19 @@ export const Chatbot = () => {
         fullWidth
         sx={{ bgcolor: apiLoading ? 'insGray.dark' : 'initial' }}
       />
+      <Box my={1}>
+        <Button variant='outlined' size='small' sx={suggestionBtnStyle} onClick={() => chatHandler("What are Liam's biggest strengths?")}>
+          What are Liam's biggest strengths?
+        </Button>
+        <Button variant='outlined' size='small' sx={suggestionBtnStyle} onClick={() => chatHandler("What are some trends in Liam's feedback?")}>
+          What are some trends in Liam's feedback?
+        </Button>
+      </Box>
       <Box justifyContent='space-between' display='flex'>
         <Button onClick={refreshHandler} variant="text" startIcon={<Refresh />}>
           New Chat
         </Button>
-        <Button onClick={chatHandler} variant="text" endIcon={<ArrowForward />}>
+        <Button onClick={() => chatHandler(chatInput)} variant="text" endIcon={<ArrowForward />}>
           Send
         </Button>
       </Box>
