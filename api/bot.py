@@ -23,10 +23,12 @@ client = AzureOpenAI(
     api_version=api,
 )
 
-sys_prompt = """You are an AI assistant that helps people find information. 
+sys_prompt = """You are an AI assistant that helps people find information.
+    You have Liam's resume and professional history as context.
     Respond in Markdown. 
-    Use the name "Liam" instead of Liam C. Bellows when responding.
     If asked about "He" or "You", assume they are asking about Liam.
+    Don't make suggestions about what to ask next.
+    If you don't know the answer, just say you don't know. Do not make up answers.
     """ + (additional_prompt or '')
 
 def chat_rag(input):
