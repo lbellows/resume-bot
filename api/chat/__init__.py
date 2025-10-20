@@ -24,8 +24,8 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(prompt_input)
         # do AI stuff
         llm_res = chat_rag(prompt_input)
-        logging.info(llm_res)
-        response_text = llm_res.choices[0].message.content
+        logging.info(llm_res.model_dump_json(indent=2))
+        response_text = llm_res.output_text
 
         return func.HttpResponse(
             body=json.dumps({'data': response_text}),

@@ -29,55 +29,6 @@ sys_prompt = """You are an AI assistant that helps people find information.
     If asked about "He" or "You", assume they are asking about Liam.
     """ + (additional_prompt or '')
 
-def chat_no_rag(input):
-
-
-    prompt = [
-        {
-            "role": "system",
-            "content": sys_prompt
-        }
-    ]
-
-    if isinstance(input, list):
-        prompt.extend(input)
-    else:
-        prompt.append({
-            "role": "user",
-            "content": input
-        })
-
-    # Prepare kwargs for the create call. Some Azure model deployments reject
-    # explicit token parameters (e.g. max_tokens or max_completion_tokens).
-    # Omit token limits here and let the service default to its configured limits.
-    base_kwargs = dict(
-        model=deployment,
-        messages=prompt,
-        temperature=0.7,
-        top_p=0.95,
-        frequency_penalty=0,
-        presence_penalty=0,
-        stop=None,
-        stream=False,
-    )
-
-    # If this deployment is a gpt-5-style model, prefer the Responses API.
-    if deployment and "gpt-5" in deployment:
-        # Flatten messages into a single input string for the Responses API
-        user_texts = [m.get('content') for m in prompt if m.get('role') == 'user']
-        input_text = "\n\n".join(user_texts) if user_texts else ""
-        # Responses.create expects 'input' rather than 'messages'. Omit
-        # temperature/top_p for deployments that don't accept them.
-        completion = client.responses.create(
-            model=deployment,
-            input=input_text,
-        )
-    else:
-        # Generate the completion (do not send token-limiting parameters)
-        completion = client.chat.completions.create(**base_kwargs)
-
-    return _normalize_to_chat_like(completion)
-
 def chat_rag(input):
     
     prompt = [
@@ -95,87 +46,44 @@ def chat_rag(input):
             "content": input
         })
 
-    # Build the azure_search parameters and conditionally include fields
-    az_params = {
-        "endpoint": f"{search_endpoint}",
-        "index_name": search_index,
-        "semantic_configuration": "default",
-        "query_type": "simple",
-        "fields_mapping": {},
-        "in_scope": False,
-        # role_information was supported by some older RAG integrations (e.g. gpt-40-mini)
-        # but newer models like gpt-5-mini reject unknown extra inputs. Only include it
-        # when the deployment name suggests a gpt-4 model.
-        "filter": None,
-        "strictness": 3,
-        "top_n_documents": 5,
-        "authentication": {
-            "type": "api_key",
-            "key": f"{search_key}"
-        }
-    }
+    # Responses API: run an Azure Cognitive Search query locally and include
+    # the top documents in the prompt (the Responses API does not accept
+    # 'data_sources' in this SDK call).
+    user_texts = [m.get('content') for m in prompt if m.get('role') == 'user']
+    input_text = "\n\n".join(user_texts) if user_texts else ""
 
-    # include role_information only for gpt-4 style deployments
-    if deployment and ("gpt-4" in deployment or "gpt-40" in deployment or "gpt-4o" in deployment):
-        az_params["role_information"] = sys_prompt
+    # Build a simple Azure Cognitive Search query to fetch top documents
+    try:
+        query = urllib.parse.quote(input_text)
+        url = f"{search_endpoint}/indexes/{search_index}/docs/search?api-version=2020-06-30"
+        body = json.dumps({"search": input_text, "top": 5}).encode('utf-8')
+        req = urllib.request.Request(url, data=body, method='POST')
+        req.add_header('Content-Type', 'application/json')
+        req.add_header('api-key', search_key)
+        with urllib.request.urlopen(req, timeout=10) as resp:
+            search_resp = json.load(resp)
+        docs = []
+        for d in search_resp.get('value', [])[:5]:
+            # try to get a content field or the whole document
+            content = d.get('content') or d.get('text') or json.dumps(d)
+            docs.append(content)
+        docs_text = "\n\n---\n\n".join(docs)
+    except Exception:
+        docs_text = ""
 
-    extra_body = {
-        "data_sources": [{
-            "type": "azure_search",
-            "parameters": az_params
-        }]
-    }
+    # Compose the final input by including system prompt, retrieved docs,
+    # then the user's input
+    full_input = f"SYSTEM:\n{sys_prompt}\n\nCONTEXT:\n{docs_text}\n\nUSER:\n{input_text}"
 
-    if deployment and "gpt-5" in deployment:
-        # Responses API: run an Azure Cognitive Search query locally and include
-        # the top documents in the prompt (the Responses API does not accept
-        # 'data_sources' in this SDK call).
-        user_texts = [m.get('content') for m in prompt if m.get('role') == 'user']
-        input_text = "\n\n".join(user_texts) if user_texts else ""
+    # Some Azure deployments don't accept temperature/top_p on Responses API
+    completion = client.responses.create(
+        model=deployment,
+        input=full_input,
+    )
 
-        # Build a simple Azure Cognitive Search query to fetch top documents
-        try:
-            query = urllib.parse.quote(input_text)
-            url = f"{search_endpoint}/indexes/{search_index}/docs/search?api-version=2020-06-30"
-            body = json.dumps({"search": input_text, "top": 5}).encode('utf-8')
-            req = urllib.request.Request(url, data=body, method='POST')
-            req.add_header('Content-Type', 'application/json')
-            req.add_header('api-key', search_key)
-            with urllib.request.urlopen(req, timeout=10) as resp:
-                search_resp = json.load(resp)
-            docs = []
-            for d in search_resp.get('value', [])[:5]:
-                # try to get a content field or the whole document
-                content = d.get('content') or d.get('text') or json.dumps(d)
-                docs.append(content)
-            docs_text = "\n\n---\n\n".join(docs)
-        except Exception:
-            docs_text = ""
+    return completion
 
-        # Compose the final input by including system prompt, retrieved docs,
-        # then the user's input
-        full_input = f"SYSTEM:\n{sys_prompt}\n\nCONTEXT:\n{docs_text}\n\nUSER:\n{input_text}"
-
-        # Some Azure deployments don't accept temperature/top_p on Responses API
-        completion = client.responses.create(
-            model=deployment,
-            input=full_input,
-        )
-    else:
-        base_kwargs = dict(
-            model=deployment,
-            messages=prompt,
-            temperature=0.7,
-            top_p=0.95,
-            frequency_penalty=0,
-            presence_penalty=0,
-            stop=None,
-            stream=False,
-            extra_body=extra_body,
-        )
-        completion = client.chat.completions.create(**base_kwargs)
-
-    return _normalize_to_chat_like(completion)
+    # return _normalize_to_chat_like(completion)
 
 
 def _normalize_to_chat_like(response_obj):
