@@ -1,1 +1,1 @@
-`python -m api.__tests__.test` seems to work for tests
+`api/.venv/bin/python -m api.__tests__.test` seems to work for tests
