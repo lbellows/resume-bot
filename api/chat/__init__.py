@@ -14,21 +14,28 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
                 
         user_chat = ''
         if(req.method == 'GET'):
-            user_chat = req.params.get('text')
+            return func.HttpResponse(
+                body={
+                    'data': 'Not allowed'
+                },
+                mimetype='application/json',
+                status_code=400
+            )
         else:
             req_body = req.get_json()
-            user_chat = req_body.get('text')
-            chats = req_body.get('chats')
+            
 
-        prompt_input = chats if chats else user_chat
-        logging.info(prompt_input)
+
+        logging.info(req_body)
         # do AI stuff
-        llm_res = chat_rag(prompt_input)
+        llm_res = chat_rag(req_body)
         logging.info(llm_res.model_dump_json(indent=2))
-        response_text = llm_res.output_text
 
         return func.HttpResponse(
-            body=json.dumps({'data': response_text}),
+            body={
+                'data': llm_res.output_text,
+                'id': llm_res.id,
+            },
             mimetype='application/json',
             status_code=200
         )
@@ -36,7 +43,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
     except Exception as e:
         logging.error(e)
         return func.HttpResponse(
-                body=json.dumps({"data": str(e)}),
+                body=json.dumps({"data": str(e), 'id': ''}),
                 mimetype='application/json',
                 status_code=500
         )

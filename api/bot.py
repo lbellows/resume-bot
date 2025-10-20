@@ -78,70 +78,7 @@ def chat_rag(input):
     # Some Azure deployments don't accept temperature/top_p on Responses API
     completion = client.responses.create(
         model=deployment,
-        input=full_input,
+        input=full_input
     )
 
     return completion
-
-    # return _normalize_to_chat_like(completion)
-
-
-def _normalize_to_chat_like(response_obj):
-    """Convert a Responses API response (or a ChatCompletion response) into
-    an object with `.choices[0].message.content` to keep compatibility with
-    existing callers and tests.
-    """
-    # If it already looks like chat completions, return as-is
-    if hasattr(response_obj, 'choices'):
-        return response_obj
-
-    text = None
-
-    # try common attributes
-    if hasattr(response_obj, 'output_text'):
-        try:
-            text = getattr(response_obj, 'output_text')
-        except Exception:
-            text = None
-
-    if not text and hasattr(response_obj, 'output'):
-        out = getattr(response_obj, 'output')
-        try:
-            # output may be a list of blocks
-            if isinstance(out, list) and out:
-                first = out[0]
-                # first may be dict-like
-                if isinstance(first, dict):
-                    for c in first.get('content', []):
-                        if isinstance(c, dict) and c.get('type') == 'output_text' and c.get('text'):
-                            text = c.get('text')
-                            break
-                else:
-                    # try attr access
-                    for c in getattr(first, 'content', []) or []:
-                        t = getattr(c, 'text', None) or (c.get('text') if isinstance(c, dict) else None)
-                        if t:
-                            text = t
-                            break
-        except Exception:
-            text = None
-
-    if not text and hasattr(response_obj, 'generations'):
-        try:
-            gens = getattr(response_obj, 'generations')
-            if isinstance(gens, list) and gens:
-                first = gens[0]
-                # first may be a list or object
-                cand = first[0] if isinstance(first, list) and first else first
-                text = getattr(cand, 'text', None) or (cand.get('text') if isinstance(cand, dict) else None)
-        except Exception:
-            text = None
-
-    if text is None:
-        # final fallback: stringify the response
-        try:
-            text = str(response_obj)
-        except Exception:
-            text = ''
-
-    return SimpleNamespace(choices=[SimpleNamespace(message=SimpleNamespace(content=text))])

@@ -1,7 +1,6 @@
 from types import SimpleNamespace
 from .. import bot
 
-
 def _run_tests():
 
     rag_json = bot.chat_rag([{
@@ -9,7 +8,10 @@ def _run_tests():
         'content': "Where was Liam's last job?"
     }])
     print('RAG JSON')
-    print(rag_json.output_text)
+    print({
+        'data': rag_json.output_text,
+        'id': rag_json.id,
+    })
 
 
 if __name__ == '__main__':

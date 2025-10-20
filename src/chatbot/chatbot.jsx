@@ -27,6 +27,7 @@ export const Chatbot = () => {
 
   const [chatHistory, setChatHistory] = useState(historyInit)
   const [chatInput, setChatInput] = useState('')
+  const [lastId, setLastId] = useState('')
   const chatRef = useRef(null)
   const [apiLoading, setApiLoading] = useState(false)
 
@@ -44,14 +45,16 @@ export const Chatbot = () => {
       role: 'user',
       content: chatText
     }
+
+    if (lastId)
+      newUserChat.id = lastId
+
     const chatWithUser = [...chatHistory, newUserChat]
     setChatHistory(chatWithUser)
 
-    const onlyUserChats = chatWithUser
-      .filter(c => c.isUser)
-      .map(({ content, role }) => ({ content, role }))
+    const chat = await httpPost('/api/chat', { newUserChat })
 
-    const chat = await httpPost('/api/chat', { chats: onlyUserChats })
+    setLastId(chat.data.id)
 
     const newBotChat = {
       time: getCurrentTime(),
@@ -60,7 +63,6 @@ export const Chatbot = () => {
       isUser: false,
       role: 'system',
       content: chat.data.data
-      // sources: chat.data.sources
     }
     const chatWithBot = [...chatWithUser, newBotChat]
     setChatInput('')
