@@ -15,9 +15,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         user_chat = ''
         if(req.method == 'GET'):
             return func.HttpResponse(
-                body={
+                body=json.dumps({
                     'data': 'Not allowed'
-                },
+                }),
                 mimetype='application/json',
                 status_code=400
             )
