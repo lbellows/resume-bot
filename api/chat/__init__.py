@@ -32,10 +32,10 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
         logging.info(llm_res.model_dump_json(indent=2))
 
         return func.HttpResponse(
-            body={
+            body=json.dumps({
                 'data': llm_res.output_text,
                 'id': llm_res.id,
-            },
+            }),
             mimetype='application/json',
             status_code=200
         )
