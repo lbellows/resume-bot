@@ -11,11 +11,12 @@ search_key = os.getenv("SEARCH_KEY")
 search_index = os.getenv("SEARCH_INDEX_NAME")  
 subscription_key = os.getenv("AZURE_OPENAI_API_KEY")
 additional_prompt = os.getenv("ADDITIONAL_PROMPT")
+api = os.getenv("API_VERSION")
 
 client = AzureOpenAI(  
     azure_endpoint=endpoint,  
     api_key=subscription_key,  
-    api_version="2024-08-01-preview",
+    api_version=api,
 )
 
 sys_prompt = """You are an AI assistant that helps people find information. 
