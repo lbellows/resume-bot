@@ -30,26 +30,37 @@ sys_prompt = """You are an AI assistant that helps people find information.
     """ + (additional_prompt or '')
 
 def chat_rag(input):
-    
-    prompt = [
-        {
-            "role": "system",
-            "content": sys_prompt
-        }
-    ] 
+    """Accepts either:
+    - a list of message dicts (old behavior), or
+    - a single JS-like user message object with fields like
+      { id, time, name, text, isUser, role, content }
+
+    Uses the Azure Responses API 'instructions' parameter for the
+    system prompt and, when the incoming message contains an 'id', passes
+    it as 'previous_response_id' to provide chat history context.
+    """
+
+    # Normalize messages into a list of message dicts
+    messages = []
+    previous_response_id = None
 
     if isinstance(input, list):
-        prompt.extend(input)
+        messages = input[:]  # assume already in {role, content} form
+    elif isinstance(input, dict):
+        # JS-like object: prefer 'content' then 'text'
+        content = input.get('content') or input.get('text') or ''
+        role = input.get('role', 'user')
+        messages = [{"role": role, "content": content}]
+        # capture id if present to forward as previous_response_id
+        previous_response_id = input.get('id')
     else:
-        prompt.append({
-            "role": "user",
-            "content": input
-        })
+        # fallback: treat as raw string
+        messages = [{"role": "user", "content": str(input)}]
 
     # Responses API: run an Azure Cognitive Search query locally and include
     # the top documents in the prompt (the Responses API does not accept
     # 'data_sources' in this SDK call).
-    user_texts = [m.get('content') for m in prompt if m.get('role') == 'user']
+    user_texts = [m.get('content') for m in messages if m.get('role') == 'user']
     input_text = "\n\n".join(user_texts) if user_texts else ""
 
     # Build a simple Azure Cognitive Search query to fetch top documents
@@ -73,12 +84,22 @@ def chat_rag(input):
 
     # Compose the final input by including system prompt, retrieved docs,
     # then the user's input
-    full_input = f"SYSTEM:\n{sys_prompt}\n\nCONTEXT:\n{docs_text}\n\nUSER:\n{input_text}"
+    # Compose the final input by including retrieved docs then the user's input
+    full_input = f"CONTEXT:\n{docs_text}\n\nUSER:\n{input_text}"
 
+    # Build request kwargs for Responses API. Use 'instructions' for system prompt
+    # and include previous_response_id when available.
+    request_kwargs = {
+        "model": deployment,
+        "input": full_input,
+        "instructions": sys_prompt,
+    }
+
+    if previous_response_id:
+        request_kwargs["previous_response_id"] = previous_response_id
+
+    print("Request kwargs:", request_kwargs.get('previous_response_id'))
     # Some Azure deployments don't accept temperature/top_p on Responses API
-    completion = client.responses.create(
-        model=deployment,
-        input=full_input
-    )
+    completion = client.responses.create(**request_kwargs)
 
     return completion
