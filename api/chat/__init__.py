@@ -12,23 +12,9 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
     try:
                 
-        user_chat = ''
-        if(req.method == 'GET'):
-            return func.HttpResponse(
-                body=json.dumps({
-                    'data': 'Not allowed'
-                }),
-                mimetype='application/json',
-                status_code=400
-            )
-        else:
-            req_body = req.get_json()
-            
-
-
+        req_body = req.get_json()
         logging.info(req_body)
-        # do AI stuff
-        llm_res = chat_rag(req_body.newUserChat)
+        llm_res = chat_rag(req_body.get('newUserChat'))
         logging.info(llm_res.model_dump_json(indent=2))
 
         return func.HttpResponse(
