@@ -28,7 +28,7 @@ def main(req: func.HttpRequest) -> func.HttpResponse:
 
         logging.info(req_body)
         # do AI stuff
-        llm_res = chat_rag(req_body)
+        llm_res = chat_rag(req_body.newUserChat)
         logging.info(llm_res.model_dump_json(indent=2))
 
         return func.HttpResponse(
